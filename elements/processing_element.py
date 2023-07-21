@@ -5,7 +5,7 @@ from elements import Feature
 class PE(Feature):
     """Defines the PE class for topology."""
 
-    def __init__(self, loc: tuple, data: list[int]):
+    def __init__(self, loc: tuple, data: set[int]):
         """
         Initializes a PE.
 

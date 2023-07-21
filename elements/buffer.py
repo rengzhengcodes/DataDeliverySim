@@ -7,7 +7,7 @@ from elements import Feature
 class Buffer(Feature):
     """Represents a buffer in a Topology."""
 
-    def __init__(self, loc: tuple, data: list[int]):
+    def __init__(self, loc: tuple, data: set[int]):
         """
         Initializes a Buffer.
 
