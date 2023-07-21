@@ -2,5 +2,6 @@
 
 from abc import ABC, abstractmethod
 
+
 class Feature(ABC):
-    pass
+    """An abstract class representing the features of a topology."""
