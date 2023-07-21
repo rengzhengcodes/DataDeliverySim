@@ -1,13 +1,15 @@
 """
 Declares the Buffer classes of a Topology.
 """
+import numpy as np
+
 from elements import Feature
 
 
 class Buffer(Feature):
     """Represents a buffer in a Topology."""
 
-    def __init__(self, loc: tuple, data: set[int]):
+    def __init__(self, loc: np.array, data: set[int]):
         """
         Initializes a Buffer.
 
