@@ -1,0 +1,116 @@
+"""Creates and runs the simulation."""
+
+import random
+
+from elements import Feature
+from elements.buffer import Buffer
+from elements.processing_element import PE
+
+# Length and width of the grid representing the topology.
+M: int = 100
+N: int = 100
+
+# Number of packets to be generated.
+num_packets: int = 5000
+
+# Grid representing the topology.
+topology: tuple[tuple[Feature]] = [[None for j in range(M)] for i in range(N)]
+
+# List of packets to deliver.
+packets = list(range(num_packets))
+
+# List of packets that need to be placed into an src.
+src_packets = list(packets)
+
+# Set of all PEs that need a key.
+dest = {
+    key: set() for key in packets
+}
+# Sources of packets.
+srcs = {
+    key: set() for key in packets
+}
+
+# Populates the topology, alternating rows of PEs and Buffers.
+i: int
+for i in range(M):
+    j: int
+    for j in range(N):
+        if i % 2 == 0:
+            # Chooses 3 packets that need to be delivered.
+            deliveries: set[int] = set(random.sample(packets, 3))
+            # Initializes a PE with those packets.
+            topology[i][j] = PE((i, j), deliveries)
+            # For each PE that needs to receive a delivery, adds the PE to the
+            # set of dests.
+            packet: int
+            for packet in deliveries:
+                dest[packet].add(topology[i][j])
+        else:
+            # Chooses 1 packet from packets.
+            packet: set[int] = random.choice(src_packets)
+            # Removes  that packet from future packets to be put in.
+            src_packets.remove(packet)
+            # Initializes a buffer with that packet.
+            topology[i][j] = Buffer((i, j), {packet})
+            # Adds the buffer to the set of sources for that packet.
+            srcs[packet].add(topology[i][j])
+
+def diffuse_packet(pkt: int) -> int:
+    """
+    Diffuses a packet through the grid until it reaches all its destinations.
+
+    @pkt        The packet to diffuse.
+    @pkt_grid   A grid representing the diffusion of a packet.
+
+    @return     The number of steps needed to fully diffuse the packet.
+    """
+    # Notes the target locations.
+    target_locs: set[tuple[int, int]] = {pe.loc for pe in dest[pkt]}
+    
+    # Initializes the diffusion grid, tracking where the packet has been.
+    pkt_grid: list[list[bool]] = [[False for j in range(M)] for i in range(N)]
+
+    # Initializes the diffusion grid with the sources.
+    src: tuple[int, int]
+    for src in srcs[pkt]:
+        pkt_grid[src.loc[0]][src.loc[1]] = True
+    
+    # Tracks the number of steps taken so far.
+    steps: int = 0
+
+    # lambda function to detect if a packet has reached a locations.
+    reached: callable[[tuple[int, int]], bool] = lambda loc: pkt_grid[loc[0]][loc[1]]
+
+    # Adjacencies in the topology grid, representing the diffusion.
+    adjacencies: tuple[tuple[int, int]] = ((0, 1), (0, -1), (1, 0), (-1, 0))
+    
+
+    # Runs the diffusion until all destinations are reached.
+    while any(not reached(loc) for loc in target_locs):
+        # Goes through the grid, diffusing the packet.
+        i: int
+        for i in range(M):
+            j: int
+            for j in range(N):
+                # If the packet is at this location, diffuses it.
+                if reached((i, j)):
+                    # Goes through each adjacency.
+                    adj: tuple
+                    for adj in adjacencies:
+                        # Calculates the adjacent location.
+                        adj_loc: tuple[int, int] = (i + adj[0], j + adj[1])
+                        # If the adjacent location is in the grid, diffuses the
+                        # packet.
+                        if 0 <= adj_loc[0] < M and 0 <= adj_loc[1] < N:
+                            pkt_grid[adj_loc[0]][adj_loc[1]] = True
+    
+        # Increments the number of steps taken.
+        steps += 1
+    
+    return steps
+
+
+# Runs the simulation until all packets are delivered.
+for packet in packets:
+    print(f"Packet {packet} took {diffuse_packet(packet)} steps to deliver.")
