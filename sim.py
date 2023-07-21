@@ -2,6 +2,8 @@
 
 import random
 
+import joblib
+
 from elements import Feature
 from elements.buffer import Buffer
 from elements.processing_element import PE
@@ -65,23 +67,22 @@ def diffuse_packet(pkt: int) -> int:
     # Notes the target locations.
     target_locs: set[tuple[int, int]] = {pe.loc for pe in dest[pkt]}
 
-    # Initializes the diffusion grid, tracking where the packet has been.
-    pkt_grid: list[list[bool]] = [[False for j in range(M)] for i in range(N)]
+    # Initializes the diffusion grid, tracking steps from the nearest packet.
+    pkt_grid: list[list[bool]] = [[-1 for j in range(M)] for i in range(N)]
 
     # Initializes the diffusion grid with the sources.
     src: tuple[int, int]
     for src in srcs[pkt]:
-        pkt_grid[src.loc[0]][src.loc[1]] = True
+        pkt_grid[src.loc[0]][src.loc[1]] = 0
 
-    # Tracks the number of steps taken so far.
-    steps: int = 0
-
+    # Tracks the total number of steps taken to reach all destinations.
+    tot_steps: int = 0
     # lambda function to detect if a packet has reached a locations.
-    reached: callable([tuple[int, int]], bool) = lambda loc: pkt_grid[loc[0]][loc[1]]
-
+    reached: callable([tuple[int, int]], bool) = (
+        lambda loc: pkt_grid[loc[0]][loc[1]] >= 0
+    )
     # Adjacencies in the topology grid, representing the diffusion.
     adjacencies: tuple[tuple[int, int]] = ((0, 1), (0, -1), (1, 0), (-1, 0))
-
     # Runs the diffusion until all destinations are reached.
     while any(not reached(loc) for loc in target_locs):
         # Goes through the grid, diffusing the packet.
@@ -96,15 +97,26 @@ def diffuse_packet(pkt: int) -> int:
                     for adj in adjacencies:
                         # Calculates the adjacent location.
                         adj_loc: tuple[int, int] = (i + adj[0], j + adj[1])
-                        # If the adjacent location is in the grid, diffuses the
-                        # packet.
-                        if 0 <= adj_loc[0] < M and 0 <= adj_loc[1] < N:
-                            pkt_grid[adj_loc[0]][adj_loc[1]] = True
+                        # If the adjacent location is in the grid and has a higher
+                        # or negative step count, diffuses the packet.
+                        if (0 <= adj_loc[0] < M and 0 <= adj_loc[1] < N) and (
+                            pkt_grid[adj_loc[0]][adj_loc[1]] < 0
+                            or pkt_grid[adj_loc[0]][adj_loc[1]] > pkt_grid[i][j] + 1
+                        ):
+                            # If the adj_loc is a destination.
+                            if adj_loc in target_locs:
+                                # Diffuse 0.
+                                pkt_grid[adj_loc[0]][adj_loc[1]] = 0
+                                # Add number of steps to tot_steps.
+                                tot_steps += pkt_grid[i][j] + 1
+                                # Remove the destination from the set of target
+                                # locations.
+                                target_locs.remove(adj_loc)
+                            # Otherwise, diffuse the packet.
+                            else:
+                                pkt_grid[adj_loc[0]][adj_loc[1]] = pkt_grid[i][j] + 1
 
-        # Increments the number of steps taken.
-        steps += 1
-
-    return steps
+    return tot_steps
 
 
 # Runs the simulation until all packets are delivered.
