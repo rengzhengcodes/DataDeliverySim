@@ -1,13 +1,11 @@
 """Defines the PE classes for topology."""
-import numpy as np
-
 from elements import Feature
 
 
 class PE(Feature):
     """Defines the PE class for topology."""
 
-    def __init__(self, loc: np.array, data: set[int]):
+    def __init__(self, loc: tuple, data: set[int]):
         """
         Initializes a PE.
 
