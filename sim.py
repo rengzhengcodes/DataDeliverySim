@@ -23,38 +23,35 @@ packets = list(range(num_packets))
 src_packets = list(packets)
 
 # Set of all PEs that need a key.
-dest = {
-    key: set() for key in packets
-}
+dest = {key: set() for key in packets}
 # Sources of packets.
-srcs = {
-    key: set() for key in packets
-}
+srcs = {key: set() for key in packets}
 
 # Populates the topology, alternating rows of PEs and Buffers.
-i: int
-for i in range(M):
-    j: int
-    for j in range(N):
-        if i % 2 == 0:
+x: int
+for x in range(M):
+    y: int
+    for y in range(N):
+        if x % 2 == 0:
             # Chooses 3 packets that need to be delivered.
             deliveries: set[int] = set(random.sample(packets, 3))
             # Initializes a PE with those packets.
-            topology[i][j] = PE((i, j), deliveries)
+            topology[x][y] = PE((x, y), deliveries)
             # For each PE that needs to receive a delivery, adds the PE to the
             # set of dests.
             packet: int
             for packet in deliveries:
-                dest[packet].add(topology[i][j])
+                dest[packet].add(topology[x][y])
         else:
             # Chooses 1 packet from packets.
             packet: set[int] = random.choice(src_packets)
             # Removes  that packet from future packets to be put in.
             src_packets.remove(packet)
             # Initializes a buffer with that packet.
-            topology[i][j] = Buffer((i, j), {packet})
+            topology[x][y] = Buffer((x, y), {packet})
             # Adds the buffer to the set of sources for that packet.
-            srcs[packet].add(topology[i][j])
+            srcs[packet].add(topology[x][y])
+
 
 def diffuse_packet(pkt: int) -> int:
     """
@@ -67,7 +64,7 @@ def diffuse_packet(pkt: int) -> int:
     """
     # Notes the target locations.
     target_locs: set[tuple[int, int]] = {pe.loc for pe in dest[pkt]}
-    
+
     # Initializes the diffusion grid, tracking where the packet has been.
     pkt_grid: list[list[bool]] = [[False for j in range(M)] for i in range(N)]
 
@@ -75,16 +72,15 @@ def diffuse_packet(pkt: int) -> int:
     src: tuple[int, int]
     for src in srcs[pkt]:
         pkt_grid[src.loc[0]][src.loc[1]] = True
-    
+
     # Tracks the number of steps taken so far.
     steps: int = 0
 
     # lambda function to detect if a packet has reached a locations.
-    reached: callable[[tuple[int, int]], bool] = lambda loc: pkt_grid[loc[0]][loc[1]]
+    reached: callable([tuple[int, int]], bool) = lambda loc: pkt_grid[loc[0]][loc[1]]
 
     # Adjacencies in the topology grid, representing the diffusion.
     adjacencies: tuple[tuple[int, int]] = ((0, 1), (0, -1), (1, 0), (-1, 0))
-    
 
     # Runs the diffusion until all destinations are reached.
     while any(not reached(loc) for loc in target_locs):
@@ -104,10 +100,10 @@ def diffuse_packet(pkt: int) -> int:
                         # packet.
                         if 0 <= adj_loc[0] < M and 0 <= adj_loc[1] < N:
                             pkt_grid[adj_loc[0]][adj_loc[1]] = True
-    
+
         # Increments the number of steps taken.
         steps += 1
-    
+
     return steps
 
 
