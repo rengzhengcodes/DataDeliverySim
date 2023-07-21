@@ -7,7 +7,7 @@ from elements import Feature
 class Buffer(Feature):
     """Represents a buffer in a Topology."""
 
-    def __init__(self, buf_id: int, data: list[int]):
+    def __init__(self, loc: tuple, data: list[int]):
         """
         Initializes a Buffer.
 
@@ -17,13 +17,13 @@ class Buffer(Feature):
         @pre    We expect data size of a buffer to be rate limited by the
                 topology.
         """
-        self.buf_id = buf_id
+        self.loc = loc
         self.data = data
 
     def __repr__(self):
         """String function for a Buffer."""
-        return f"Buffer({self.buf_id}, {self.data})"
+        return f"Buffer({self.loc}, {self.data})"
 
     def __str__(self):
         """String function for a Buffer."""
-        return f"Buffer {self.buf_id}: {self.data}"
+        return f"Buffer {self.loc}: {self.data}"
