@@ -11,7 +11,7 @@ class Buffer(Feature):
         """
         Initializes a Buffer.
 
-        @id     The id reference of the buffer.
+        @loc    The id reference of the buffer.
         @data   A list of UUIDs of the packets in the buffer.
 
         @pre    We expect data size of a buffer to be rate limited by the

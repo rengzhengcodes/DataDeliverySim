@@ -3,6 +3,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Iterable
 
+from pprint import pprint
+
 from elements import Feature
 from elements.buffer import Buffer
 from elements.processing import PE
@@ -246,5 +248,6 @@ class Topology:
         for loc in self.build_coords():
             if self.deduce_subspace(pkt_grid, loc)[loc[-1]] >= 0:
                 self.deduce_subspace(self._heatmap, loc)[loc[-1]] += 1
+        pprint(pkt_grid)
 
         return (max_steps, tot_steps)

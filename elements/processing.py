@@ -9,7 +9,7 @@ class PE(Feature):
         """
         Initializes a PE.
 
-        @id     The id reference of the PE.
+        @loc    The id reference of the PE.
         @data   A list of UUIDs of the packets needed in the PE.
 
         @pre    We expect data size of a PE to be rate limited by the
