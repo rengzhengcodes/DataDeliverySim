@@ -3,8 +3,6 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Iterable
 
-from joblib import Parallel, delayed
-
 from elements import Feature
 from elements.buffer import Buffer
 from elements.processing import PE
@@ -31,18 +29,6 @@ class Topology:
         # Destination and source directories.
         self._dsts: dict[Any, set] = self.build_directory(self._pes)
         self._srcs: dict[Any, set] = self.build_directory(self._buffer)
-
-        # Dictionary of all the data.
-        self._data: dict = {}
-
-        # Starts calculating packet totals.
-        results = Parallel(n_jobs=8)(delayed(self.diffuse_packet)(pkt) for pkt in self._dsts)
-        print(results[0])
-        # For every packet, print out the results.
-        for packet, max_steps, tot_steps, grid in results:
-            print(
-                f"Packet {packet} took {max_steps} steps to deliver, with all steps being {tot_steps}."
-            )
 
     def build_adjacencies(self) -> tuple:
         """
@@ -74,8 +60,7 @@ class Topology:
         # Makes sure not to return the 0 case.
         adj: tuple
         for adj in sub_adj_builder():
-            if any(adj):
-                yield adj
+            yield adj
 
     def build_directory(self, features: Iterable[Feature]) -> dict[Any, set]:
         """
@@ -207,7 +192,7 @@ class Topology:
             # Seeds the grid.
             self.deduce_subspace(pkt_grid, src.loc)[src.loc[-1]] = 0
             # Adds to diffusion queue
-            queue.append((0, src.loc))
+            queue.append((0, 0, src.loc))
 
         # Tracks the maximum number of steps taken to reach all destinations.
         max_steps: int = 0
@@ -217,39 +202,40 @@ class Topology:
         while target_locs and queue:
             # Grabs first off queue.
             steps: int
+            dist: int
             loc: tuple
-            steps, loc = queue.pop(0)
+            steps, dist, loc = queue.pop(0)
+
+            # Deduces current location.
+            loc_space: list = self.deduce_subspace(pkt_grid, loc)
+            # Deduces current value.
+            loc_val: int = loc_space[loc[-1]]
+
+            # If we are a target_loc.
+            if loc in target_locs:
+                # Remove the destination from the set of target locations.
+                target_locs.remove(loc)
+                # Replaces max_steps if steps+1 is greater
+                max_steps = max(max_steps, steps)
+                # Add number of steps to tot_steps.
+                tot_steps += dist
+                # Resets dist to 0 because we already need to be here.
+                dist = 0
+                # Sets loc_val to distance from propagation.
+                loc_space[loc[-1]] = steps
+            # Otherwise, if the location has a higher or equal or negative step
+            # count, compared to the current diffusion path diffuses the packet.
+            elif loc_val < 0 or loc_val > steps:
+                loc_space[loc[-1]] = steps
 
             # Goes through each adjacency.
             adj: tuple
             for adj in self.build_adjacencies():
                 # Calculates the adjacent location.
                 adj_loc: tuple = tuple(loc[i] + adj[i] for i in range(len(self._dims)))
-                # Skips this adjacency if out of bounds.
-                if not self.bounds_check(adj_loc):
-                    continue
-                # Finds subspace of adjacent location.
-                adj_space: list = self.deduce_subspace(pkt_grid, adj_loc)
-                # Accesses the value at current location.
-                loc_val: int = self.deduce_subspace(pkt_grid, loc)[loc[-1]]
-                # If the adjacent location has a higher or negative step count,
-                # diffuses the packet.
-                if adj_space[adj_loc[-1]] < 0 or loc_val + 1 < adj_space[adj_loc[-1]]:
-                    # Appends diffusion to end of queue.
-                    queue.append((steps + 1, adj_loc))
-                    # If the adj_loc is a destination.
-                    if adj_loc in target_locs:
-                        # Diffuse 0.
-                        adj_space[adj_loc[-1]] = 0
-                        # Add number of steps to tot_steps.
-                        tot_steps += loc_val + 1
-                        # Remove the destination from the set of target locations.
-                        target_locs.remove(adj_loc)
-                        # Replaces max_steps if steps+1 is greater
-                        max_steps = max(max_steps, steps + 1)
-                    # Otherwise, diffuse the packet.
-                    else:
-                        adj_space[adj_loc[-1]] = loc_val + 1
+                # Adds adjacency to queue if in bounds.
+                if self.bounds_check(adj_loc):
+                    queue.append((steps + 1, dist + 1, adj_loc))
 
         # Sanity check the program works correctly.
         assert max_steps <= tot_steps <= (max_steps * num_locs)
