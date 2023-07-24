@@ -1,13 +1,15 @@
 """Creates and runs the simulation."""
 
-import random
+from itertools import product
+from typing import Any
 
-from elements import Feature
+from joblib import Parallel, delayed
+import matplotlib.pyplot as plt
+import numpy as np
+
 from elements.buffer import Buffer
 from elements.processing import PE
 
-from pprint import pprint
-from joblib import Parallel, delayed
 
 from topology import Topology
 
@@ -26,41 +28,79 @@ PE
 for k in 0..2:
 """
 
-from itertools import product
+def generate_topology_for_example_mapping(deduplicate_a=False, deduplicate_b=False):
+    """
+    Generates an example topology for the mapping above.
 
-def generate_topology_for_example_mapping(deduplicate_A=False,
-                                          deduplicate_B=False):
+    @param deduplicate_a    Whether to deduplicate the data for A.
+    @param deduplicate_b    Whether to deduplicate the data for B.
+    """
     bufs = set()
     pes = set()
-    for x, y in product(range(M), range(N)):
+    for i, j in product(range(M), range(N)):
         # Data for A
-        if deduplicate_A:
-            data_A = {('A', x, y)}
+        if deduplicate_a:
+            data_a = {("A", i, j)}
         else:
-            data_A = set(('A', x, k) for k in range(N))
+            data_a = set(("A", i, k) for k in range(N))
 
-        if deduplicate_B:
-            data_B = {('B', x, y)}
+        if deduplicate_b:
+            data_b = {("B", i, j)}
         else:
-            data_B = set(('B', k, y) for k in range(M))
+            data_b = set(("B", k, j) for k in range(M))
 
-        data_C = {('C', x, y)}
+        data_c = {("C", i, j)}
 
-        bufs.add(Buffer((x, y), data_A | data_B | data_C))
+        bufs.add(Buffer((i, j), data_a | data_b | data_c))
 
-        data_A = set(('A', x, k) for k in range(N))
-        data_B = set(('B', k, y) for k in range(M))
-        pes.add(PE((x, y), data_A | data_B | data_C))
+        data_a = set(("A", i, k) for k in range(N))
+        data_b = set(("B", k, j) for k in range(M))
+        pes.add(PE((i, j), data_a | data_b | data_c))
 
-    topology = Topology((M, N), pes, bufs)
+    topo = Topology((M, N), pes, bufs)
 
-    return topology
+    return topo
 
-topology: Topology = generate_topology_for_example_mapping(deduplicate_A=True)
-results = Parallel(n_jobs=-1)(delayed(topology.diffuse_packet)(pkt) for pkt in topology._dsts)
 
+topology: Topology = generate_topology_for_example_mapping(deduplicate_a=True)
+results = Parallel(n_jobs=-1)(
+    delayed(topology.diffuse_packet)(pkt) for pkt in topology._dsts
+)
+
+# Converts the results into a dictionary.
+res_dict: dict = {}
+
+pkt: Any
+max_cycles: int
+tot_cycles: int
+heatmap: list
 for pkt, max_cycles, tot_cycles, heatmap in results:
-    print(pkt, max_cycles, tot_cycles)
-    for row in heatmap:
-        print(row)
-    print('---')
+    res_dict[pkt] = (max_cycles, tot_cycles, heatmap)
+
+# Builds the heatmap by summing the heatmaps of each packet, with non-negative
+# values being treated as 1.
+tot_heatmap = np.zeros((M, N))
+for pkt, (max_cycles, tot_cycles, heatmap) in res_dict.items():
+    tot_heatmap += np.array(heatmap) >= 0
+
+print(tot_heatmap)
+
+# Plots the heatmap.
+plt.imshow(tot_heatmap, cmap="hot", interpolation="nearest")
+plt.show()
+
+# Plots a histogram of the max number of cycles taken for each packet.
+plt.hist([max_cycles for _, (max_cycles, tot_cycles, heatmap) in res_dict.items()])
+# Calls the x-axis distance.
+plt.xlabel("Distance")
+# Calls the y-axis number of cycles..
+plt.ylabel("Number of Cycles")
+plt.show()
+
+# Plots a histogram of the total number of cycles taken for each packet.
+plt.hist([tot_cycles for _, (max_cycles, tot_cycles, heatmap) in res_dict.items()])
+# Calls the x-axis distance.
+plt.xlabel("Distance")
+# Calls the y-axis number of cycles.
+plt.ylabel("Number of Cycles")
+plt.show()
