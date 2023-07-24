@@ -55,17 +55,21 @@ for x in range(M):
             srcs[packet].add(topology[x][y])
 
 
-def diffuse_packet(pkt: int) -> int:
+def diffuse_packet(pkt: int) -> tuple:
     """
     Diffuses a packet through the grid until it reaches all its destinations.
 
     @pkt        The packet to diffuse.
     @pkt_grid   A grid representing the diffusion of a packet.
 
-    @return     The number of steps needed to fully diffuse the packet.
+    @return     A tuple where the first element is the number of steps needed to
+                diffuse the packet to all elements and the second element is the
+                total number of steps taken by the diffusion.
     """
     # Notes the target locations.
-    target_locs: set[tuple[int, int]] = {pe.loc for pe in dest[pkt]}
+    target_locs: set[tuple] = {pe.loc for pe in dest[pkt]}
+    # Reference check for correct calcs.
+    ref_locs:set[tuple] = target_locs.copy()
 
     # Initializes the diffusion grid, tracking steps from the nearest packet.
     pkt_grid: list[list[bool]] = [[-1 for j in range(M)] for i in range(N)]
@@ -75,6 +79,8 @@ def diffuse_packet(pkt: int) -> int:
     for src in srcs[pkt]:
         pkt_grid[src.loc[0]][src.loc[1]] = 0
 
+    # Tracks the maximum number of steps taken to reach all destinations.
+    max_steps: int = 0
     # Tracks the total number of steps taken to reach all destinations.
     tot_steps: int = 0
     # lambda function to detect if a packet has reached a locations.
@@ -115,10 +121,19 @@ def diffuse_packet(pkt: int) -> int:
                             # Otherwise, diffuse the packet.
                             else:
                                 pkt_grid[adj_loc[0]][adj_loc[1]] = pkt_grid[i][j] + 1
+        
+        max_steps += 1
 
-    return tot_steps
+    # Sanity check the program works correctly.
+    assert(max_steps <= tot_steps)
+    # The only case where it should be zero in a topology where buffers and
+    # PEs are discrete units is when no PEs request the data.
+    if max_steps == 0:
+        assert(not ref_locs)
 
+    return (max_steps, tot_steps)
 
 # Runs the simulation until all packets are delivered.
 for packet in packets:
-    print(f"Packet {packet} took {diffuse_packet(packet)} steps to deliver.")
+    max_steps, tot_steps = diffuse_packet(packet)
+    print(f"Packet {packet} took {max_steps} steps to deliver, with all steps being {tot_steps}.")
