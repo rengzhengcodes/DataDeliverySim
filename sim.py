@@ -12,22 +12,8 @@ from joblib import Parallel, delayed
 from topology import Topology
 
 # Length and width of the grid representing the topology.
-M: int = 100
-N: int = 100
-
-# Number of packets to be generated.
-num_packets: int = M * N // 2
-
-# List of packets to deliver.
-packets = list(range(num_packets))
-
-# List of packets that need to be placed into an src.
-src_packets = list(packets)
-
-# Set of all PEs.
-pes: set[PE] = set()
-# Set of all buffers.
-bufs: set[Buffer] = set()
+M: int = 3
+N: int = 3
 
 """
 Mapping:
@@ -46,27 +32,27 @@ def generate_topology_for_example_mapping(deduplicate_A=False,
                                           deduplicate_B=False):
     bufs = set()
     pes = set()
-    for x, y in product(range(3), range(3)):
+    for x, y in product(range(M), range(N)):
         # Data for A
         if deduplicate_A:
             data_A = {('A', x, y)}
         else:
-            data_A = set(('A', x, k) for k in range(3))
+            data_A = set(('A', x, k) for k in range(N))
 
         if deduplicate_B:
             data_B = {('B', x, y)}
         else:
-            data_B = set(('B', k, y) for k in range(3))
+            data_B = set(('B', k, y) for k in range(M))
 
         data_C = {('C', x, y)}
 
         bufs.add(Buffer((x, y), data_A | data_B | data_C))
 
-        data_A = set(('A', x, k) for k in range(3))
-        data_B = set(('B', k, y) for k in range(3))
+        data_A = set(('A', x, k) for k in range(N))
+        data_B = set(('B', k, y) for k in range(M))
         pes.add(PE((x, y), data_A | data_B | data_C))
 
-    topology = Topology((3, 3), pes, bufs)
+    topology = Topology((M, N), pes, bufs)
 
     return topology
 
