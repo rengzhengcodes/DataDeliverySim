@@ -221,35 +221,34 @@ class Topology:
                 for adj in self.build_adjacencies():
                     # Calculates the adjacent location.
                     adj_loc: tuple = tuple(np.array(adj) + np.array(loc))
-                    # Accesses the value at location.
+                    # Finds subspace of adjacent location.
+                    adj_space: list = self.deduce_subspace(pkt_grid, adj_loc)
+                    # Accesses the value at current location.
                     loc_val: int = self.deduce_subspace(pkt_grid, loc)[loc[-1]]
                     # If the adjacent location is in the grid and has a higher
                     # or negative step count, diffuses the packet.
                     if (self.bounds_check(adj_loc)) and (
-                        loc_val < 0
-                        or loc_val
-                        > self.deduce_subspace(pkt_grid, adj_loc)[adj_loc[-1]] + 1
+                        loc_val < 0 or loc_val > adj_space[adj_loc[-1]] + 1
                     ):
                         # Appends diffusion to end of queue.
                         queue.append(adj_loc)
                         # If the adj_loc is a destination.
                         if adj_loc in target_locs:
                             # Diffuse 0.
-                            pkt_grid[adj_loc[0]][adj_loc[1]] = 0
+                            adj_space[adj_loc[-1]] = 0
                             # Add number of steps to tot_steps.
-                            tot_steps += pkt_grid[loc[0]][loc[1]] + 1
+                            tot_steps += loc_val + 1
                             # Remove the destination from the set of target
                             # locations.
                             target_locs.remove(adj_loc)
                         # Otherwise, diffuse the packet.
                         else:
-                            pkt_grid[adj_loc[0]][adj_loc[1]] = (
-                                pkt_grid[loc[0]][loc[1]] + 1
-                            )
+                            adj_space[adj_loc[-1]] = loc_val + 1
 
         max_steps += 1
 
         # Sanity check the program works correctly.
-        assert max_steps <= tot_steps <= (max_steps * num_locs)
+        assert max_steps <= tot_steps 
+        assert tot_steps <= (max_steps * num_locs)
 
         return (max_steps, tot_steps)
