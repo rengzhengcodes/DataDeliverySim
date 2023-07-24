@@ -6,7 +6,7 @@ from joblib import Parallel, delayed
 
 from elements import Feature
 from elements.buffer import Buffer
-from elements.processing_element import PE
+from elements.processing import PE
 
 # Length and width of the grid representing the topology.
 M: int = 100
