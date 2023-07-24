@@ -2,7 +2,7 @@
 
 import random
 
-import joblib
+from joblib import Parallel, delayed
 
 from elements import Feature
 from elements.buffer import Buffer
