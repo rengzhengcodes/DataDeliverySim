@@ -3,8 +3,6 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Iterable
 
-import numpy as np
-
 from elements import Feature
 from elements.buffer import Buffer
 from elements.processing import PE
@@ -217,7 +215,7 @@ class Topology:
             adj: tuple
             for adj in self.build_adjacencies():
                 # Calculates the adjacent location.
-                adj_loc: tuple = tuple(np.array(adj) + np.array(loc))
+                adj_loc: tuple = tuple(loc[i] + adj[i] for i in range(len(self._dims)))
                 # Skips this adjacency if out of bounds.
                 if not self.bounds_check(adj_loc):
                     continue
@@ -236,8 +234,7 @@ class Topology:
                         adj_space[adj_loc[-1]] = 0
                         # Add number of steps to tot_steps.
                         tot_steps += loc_val + 1
-                        # Remove the destination from the set of target
-                        # locations.
+                        # Remove the destination from the set of target locations.
                         target_locs.remove(adj_loc)
                         # Replaces max_steps if steps+1 is greater
                         max_steps = max(max_steps, steps + 1)
@@ -246,7 +243,6 @@ class Topology:
                         adj_space[adj_loc[-1]] = loc_val + 1
 
         # Sanity check the program works correctly.
-        assert tot_steps <= (max_steps * num_locs)
-        assert max_steps <= tot_steps
+        assert max_steps <= tot_steps <= (max_steps * num_locs)
 
         return (max_steps, tot_steps)
