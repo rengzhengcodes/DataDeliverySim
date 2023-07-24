@@ -28,6 +28,7 @@ PE
 for k in 0..2:
 """
 
+
 def generate_topology_for_example_mapping(deduplicate_a=False, deduplicate_b=False):
     """
     Generates an example topology for the mapping above.
