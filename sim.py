@@ -47,6 +47,8 @@ for x in range(M):
             bufs.add(Buffer((x, y), {packet}))
 
 topology: Topology = Topology((M, N), pes, bufs)
+print(tuple(topology.build_adjacencies()))
+
 
 # Runs the simulation until all packets are delivered.
 for packet in packets:

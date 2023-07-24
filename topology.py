@@ -3,6 +3,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Iterable
 
+import numpy as np
+
 from elements import Feature
 from elements.buffer import Buffer
 from elements.processing import PE
@@ -28,6 +30,41 @@ class Topology():
         # Destination and source directories.
         self._dsts: dict[Any, set] = Topology.build_directory(self._pes)
         self._srcs: dict[Any, set] = Topology.build_directory(self._buffer)
+        
+        # Heatmap of worst-case transfers.
+        self._heatmap: tuple = self.build_diffusion_grid(0)
+
+    def build_adjacencies(self) -> tuple:
+        """
+        Builds adjacencies based off of the dims.
+        """
+        def sub_adj_builder(dim_idx: int = 0) -> Iterable:
+            """
+            Builds the sub_adjacencies.
+
+            @param dim_idx  The index of the dimension we're currently on.
+            """
+            # If not at base case.
+            if dim_idx < len(self._dims) - 1:
+                # Goes through all sub adjacencies.
+                sub_adj: list
+                for sub_adj in sub_adj_builder(dim_idx + 1):
+                    # If not already in an orthogonal, append something.
+                    if not any(sub_adj):
+                        for i in (-1, 0, 1):
+                            yield (i,) + sub_adj
+                    # Otherwise, append 0
+                    else:
+                        yield (0,) + sub_adj
+            # If at base case, yield the following
+            else:
+                yield from ((-1,), (0,), (1,))
+        
+        # Makes sure not to return the 0 case.
+        adj: tuple
+        for adj in sub_adj_builder():
+            if any(adj):
+                yield adj
 
     def build_directory(features: Iterable[Feature]) -> dict[Any, set]:
         """
@@ -56,7 +93,7 @@ class Topology():
         
         return ret
 
-    def build_diffusion_grid(self, dim_idx: int) -> list:
+    def build_diffusion_grid(self, init_val: Any, dim_idx: int = 0) -> list:
         """Recursively builds a grid for the topological diffusion to happen on
         
         @param dim_idx  The index of the dim we're currently accessing.
@@ -66,11 +103,36 @@ class Topology():
 
         # Recurses if we haven't reached the base case.
         if (dim_idx < len(self._dims) - 1):
-            lower_grid: tuple = self.build_diffusion_grid(dim_idx + 1)
+            lower_grid: tuple = self.build_diffusion_grid(init_val, dim_idx + 1)
             return [deepcopy(lower_grid) for i in iterator]
 
         # Otherwise, build the lowest layer diffusion grid.
-        return [-1 for i in iterator]
+        return [init_val for i in iterator]
+
+    def build_coords(self) -> tuple:
+        """
+        Yields all locations within the grid.
+        """
+
+        def sub_location_builder(dim_idx: int = 0):
+            """
+            Builds all location tuples.
+
+            @param dim_idx  Index of the current dim we're on.
+            """
+            # If not last dim.
+            if dim_idx < len(self._dims) - 1:
+                # Recursively find sub locations.
+                for sub_loc in sub_location_builder(dim_idx + 1):
+                    # Append all new locations here.
+                    for i in range(self._dims[dim_idx]):
+                        yield (i,) + sub_loc
+            # Otherwise, yield last dim items.
+            else:
+                for i in range(self._dims[-1]):
+                    yield (i,)
+        
+        return sub_location_builder()
 
     def deduce_subspace(space: Iterable, coords: tuple) -> Iterable:
         """
@@ -95,7 +157,6 @@ class Topology():
             else:
                 subspace = subspace[coord]
 
-    
     def diffuse_packet(self, pkt: int) -> tuple:
         """
         Diffuses a packet through the grid until it reaches all its destinations.
@@ -113,9 +174,11 @@ class Topology():
 
         # Notes the target locations.
         target_locs: set[tuple] = {pe.loc for pe in self._dsts[pkt]}
+        # Notes number of target_locs
+        num_locs: int = len(target_locs)
 
         # Initializes the diffusion grid, tracking steps from the nearest packet.
-        pkt_grid: tuple = self.build_diffusion_grid(0)
+        pkt_grid: tuple = self.build_diffusion_grid(-1)
 
         # Initializes the diffusion grid with the sources.
         src: tuple[int, int]
@@ -133,44 +196,39 @@ class Topology():
         reached: callable([tuple[int, int]], bool) = (
             lambda loc: Topology.deduce_subspace(pkt_grid, loc)[loc[-1]] >= 0
         )
-        # Adjacencies in the topology grid, representing the diffusion.
-        adjacencies: tuple[tuple[int, int]] = ((0, 1), (0, -1), (1, 0), (-1, 0))
         # Runs the diffusion until all destinations are reached.
         while any(not reached(loc) for loc in target_locs):
             # Goes through the grid, diffusing the packet.
             i: int
-            for i in range(self._dims[0]):
-                j: int
-                for j in range(self._dims[1]):
-                    # If the packet is at this location, diffuses it.
-                    if reached((i, j)):
-                        # Goes through each adjacency.
-                        adj: tuple
-                        for adj in adjacencies:
-                            # Calculates the adjacent location.
-                            adj_loc: tuple[int, int] = (i + adj[0], j + adj[1])
-                            # If the adjacent location is in the grid and has a higher
-                            # or negative step count, diffuses the packet.
-                            if (0 <= adj_loc[0] < self._dims[0] and 0 <= adj_loc[1] < self._dims[1]) and (
-                                pkt_grid[adj_loc[0]][adj_loc[1]] < 0
-                                or pkt_grid[adj_loc[0]][adj_loc[1]] > pkt_grid[i][j] + 1
-                            ):
-                                # If the adj_loc is a destination.
-                                if adj_loc in target_locs:
-                                    # Diffuse 0.
-                                    pkt_grid[adj_loc[0]][adj_loc[1]] = 0
-                                    # Add number of steps to tot_steps.
-                                    tot_steps += pkt_grid[i][j] + 1
-                                    # Remove the destination from the set of target
-                                    # locations.
-                                    target_locs.remove(adj_loc)
-                                # Otherwise, diffuse the packet.
-                                else:
-                                    pkt_grid[adj_loc[0]][adj_loc[1]] = pkt_grid[i][j] + 1
+            for loc in self.build_coords():
+                if reached(loc):
+                    # Goes through each adjacency.
+                    adj: tuple
+                    for adj in self.build_adjacencies():
+                        # Calculates the adjacent location.
+                        adj_loc: tuple[int, int] = tuple(np.array(adj) + np.array(loc))
+                        # If the adjacent location is in the grid and has a higher
+                        # or negative step count, diffuses the packet.
+                        if (0 <= adj_loc[0] < self._dims[0] and 0 <= adj_loc[1] < self._dims[1]) and (
+                            pkt_grid[adj_loc[0]][adj_loc[1]] < 0
+                            or pkt_grid[adj_loc[0]][adj_loc[1]] > pkt_grid[loc[0]][loc[1]] + 1
+                        ):
+                            # If the adj_loc is a destination.
+                            if adj_loc in target_locs:
+                                # Diffuse 0.
+                                pkt_grid[adj_loc[0]][adj_loc[1]] = 0
+                                # Add number of steps to tot_steps.
+                                tot_steps += pkt_grid[loc[0]][loc[1]] + 1
+                                # Remove the destination from the set of target
+                                # locations.
+                                target_locs.remove(adj_loc)
+                            # Otherwise, diffuse the packet.
+                            else:
+                                pkt_grid[adj_loc[0]][adj_loc[1]] = pkt_grid[loc[0]][loc[1]] + 1
 
             max_steps += 1
 
         # Sanity check the program works correctly.
-        assert max_steps <= tot_steps
+        assert max_steps <= tot_steps <= max_steps * num_locs
 
         return (max_steps, tot_steps)
