@@ -157,6 +157,14 @@ class Topology():
             else:
                 subspace = subspace[coord]
 
+    def bounds_check(self, loc: tuple) -> bool:
+        """Checks if a location is in bounds."""
+        for index, elem in enumerate(loc):
+            if not (0 <= elem < self._dims[index]):
+                return False
+        
+        return True
+
     def diffuse_packet(self, pkt: int) -> tuple:
         """
         Diffuses a packet through the grid until it reaches all its destinations.
@@ -179,14 +187,19 @@ class Topology():
 
         # Initializes the diffusion grid, tracking steps from the nearest packet.
         pkt_grid: tuple = self.build_diffusion_grid(-1)
+        
+        # Initializes the diffusion priority queue.
+        queue: list = []
 
         # Initializes the diffusion grid with the sources.
-        src: tuple[int, int]
+        src: tuple
         for src in self._srcs[pkt]:
             # Gets the smallest subspace containing the cell we want to seed.
             subspace: tuple = Topology.deduce_subspace(pkt_grid, src.loc)
             # Seeds that cell.
             subspace[src.loc[-1]] = 0
+            # Adds to diffusion queue
+            queue.append(src.loc)
 
         # Tracks the maximum number of steps taken to reach all destinations.
         max_steps: int = 0
@@ -196,39 +209,42 @@ class Topology():
         reached: callable([tuple[int, int]], bool) = (
             lambda loc: Topology.deduce_subspace(pkt_grid, loc)[loc[-1]] >= 0
         )
-        # Runs the diffusion until all destinations are reached.
-        while any(not reached(loc) for loc in target_locs):
-            # Goes through the grid, diffusing the packet.
-            i: int
-            for loc in self.build_coords():
-                if reached(loc):
-                    # Goes through each adjacency.
-                    adj: tuple
-                    for adj in self.build_adjacencies():
-                        # Calculates the adjacent location.
-                        adj_loc: tuple[int, int] = tuple(np.array(adj) + np.array(loc))
-                        # If the adjacent location is in the grid and has a higher
-                        # or negative step count, diffuses the packet.
-                        if (0 <= adj_loc[0] < self._dims[0] and 0 <= adj_loc[1] < self._dims[1]) and (
-                            pkt_grid[adj_loc[0]][adj_loc[1]] < 0
-                            or pkt_grid[adj_loc[0]][adj_loc[1]] > pkt_grid[loc[0]][loc[1]] + 1
-                        ):
-                            # If the adj_loc is a destination.
-                            if adj_loc in target_locs:
-                                # Diffuse 0.
-                                pkt_grid[adj_loc[0]][adj_loc[1]] = 0
-                                # Add number of steps to tot_steps.
-                                tot_steps += pkt_grid[loc[0]][loc[1]] + 1
-                                # Remove the destination from the set of target
-                                # locations.
-                                target_locs.remove(adj_loc)
-                            # Otherwise, diffuse the packet.
-                            else:
-                                pkt_grid[adj_loc[0]][adj_loc[1]] = pkt_grid[loc[0]][loc[1]] + 1
+        # Goes through the grid, diffusing the packet.
+        while any(not reached(loc) for loc in target_locs) and queue:
+            loc: tuple = queue.pop(0)
+            if reached(loc):
+                # Goes through each adjacency.
+                adj: tuple
+                for adj in self.build_adjacencies():
+                    # Calculates the adjacent location.
+                    adj_loc: tuple = tuple(np.array(adj) + np.array(loc))
+                    # Accesses the value at location.
+                    loc_val: int = Topology.deduce_subspace(pkt_grid, loc)[loc[-1]]
+                    # If the adjacent location is in the grid and has a higher
+                    # or negative step count, diffuses the packet.
+                    if (self.bounds_check(adj_loc)) and (
+                        loc_val < 0 or
+                        loc_val > Topology.deduce_subspace(pkt_grid, adj_loc)[adj_loc[-1]] + 1
+                    ):
+                        # Appends diffusion to end of queue.
+                        queue.append(adj_loc)
+                        # If the adj_loc is a destination.
+                        if adj_loc in target_locs:
+                            # Diffuse 0.
+                            pkt_grid[adj_loc[0]][adj_loc[1]] = 0
+                            # Add number of steps to tot_steps.
+                            tot_steps += pkt_grid[loc[0]][loc[1]] + 1
+                            # Remove the destination from the set of target
+                            # locations.
+                            target_locs.remove(adj_loc)
+                        # Otherwise, diffuse the packet.
+                        else:
+                            pkt_grid[adj_loc[0]][adj_loc[1]] = pkt_grid[loc[0]][loc[1]] + 1
 
-            max_steps += 1
+        max_steps += 1
+
 
         # Sanity check the program works correctly.
-        assert max_steps <= tot_steps <= max_steps * num_locs
+        assert max_steps <= tot_steps <= (max_steps * num_locs)
 
         return (max_steps, tot_steps)
