@@ -1,6 +1,7 @@
 """Abstracts out the topology of the network."""
 from __future__ import annotations
 from copy import deepcopy
+from itertools import product
 from typing import Any, Iterable
 
 from elements import Feature
@@ -109,26 +110,7 @@ class Topology:
         """
         Yields all locations within the grid.
         """
-
-        def sub_location_builder(dim_idx: int = 0):
-            """
-            Builds all location tuples.
-
-            @param dim_idx  Index of the current dim we're on.
-            """
-            # If not last dim.
-            if dim_idx < len(self._dims) - 1:
-                # Recursively find sub locations.
-                for sub_loc in sub_location_builder(dim_idx + 1):
-                    # Append all new locations here.
-                    for i in range(self._dims[dim_idx]):
-                        yield (i,) + sub_loc
-            # Otherwise, yield last dim items.
-            else:
-                for i in range(self._dims[-1]):
-                    yield (i,)
-
-        return sub_location_builder()
+        yield from product(*(range(dim) for dim in self._dims))
 
     def deduce_subspace(self, space: Iterable, coords: tuple) -> Iterable:
         """
