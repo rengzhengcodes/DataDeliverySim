@@ -193,10 +193,8 @@ class Topology:
         # Initializes the diffusion grid with the sources.
         src: tuple
         for src in self._srcs[pkt]:
-            # Gets the smallest subspace containing the cell we want to seed.
-            src_space: tuple = self.deduce_subspace(pkt_grid, src.loc)
-            # Seeds that cell.
-            src_space[src.loc[-1]] = 0
+            # Seeds the grid.
+            self.deduce_subspace(pkt_grid, src.loc)[src.loc[-1]] = 0
             # Adds to diffusion queue
             queue.append((0, src.loc))
 
@@ -244,5 +242,9 @@ class Topology:
 
         # Sanity check the program works correctly.
         assert max_steps <= tot_steps <= (max_steps * num_locs)
+        # Adds to heatmap.
+        for loc in self.build_coords():
+            if self.deduce_subspace(pkt_grid, loc)[loc[-1]] >= 0:
+                self.deduce_subspace(self._heatmap, loc)[loc[-1]] += 1
 
         return (max_steps, tot_steps)

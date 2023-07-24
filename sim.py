@@ -2,6 +2,7 @@
 
 import random
 
+from pprint import pprint
 from joblib import Parallel, delayed
 
 from elements import Feature
@@ -11,11 +12,11 @@ from elements.processing import PE
 from topology import Topology
 
 # Length and width of the grid representing the topology.
-M: int = 100
-N: int = 100
+M: int = 10
+N: int = 10
 
 # Number of packets to be generated.
-num_packets: int = 5000
+num_packets: int = M * N // 2
 
 # List of packets to deliver.
 packets = list(range(num_packets))
@@ -56,3 +57,5 @@ for packet in packets:
     print(
         f"Packet {packet} took {max_steps} steps to deliver, with all steps being {tot_steps}."
     )
+
+pprint(topology._heatmap)
