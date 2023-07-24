@@ -15,9 +15,6 @@ N: int = 100
 # Number of packets to be generated.
 num_packets: int = 5000
 
-# Grid representing the topology.
-topology: tuple[tuple[Feature]] = [[None for j in range(M)] for i in range(N)]
-
 # List of packets to deliver.
 packets = list(range(num_packets))
 
@@ -38,21 +35,21 @@ for x in range(M):
             # Chooses 3 packets that need to be delivered.
             deliveries: set[int] = set(random.sample(packets, 3))
             # Initializes a PE with those packets.
-            topology[x][y] = PE((x, y), deliveries)
+            pe: PE = PE((x, y), deliveries)
             # For each PE that needs to receive a delivery, adds the PE to the
             # set of dests.
             packet: int
             for packet in deliveries:
-                dest[packet].add(topology[x][y])
+                dest[packet].add(pe)
         else:
             # Chooses 1 packet from packets.
             packet: set[int] = random.choice(src_packets)
             # Removes  that packet from future packets to be put in.
             src_packets.remove(packet)
             # Initializes a buffer with that packet.
-            topology[x][y] = Buffer((x, y), {packet})
+            buffer: Buffer = Buffer((x, y), {packet})
             # Adds the buffer to the set of sources for that packet.
-            srcs[packet].add(topology[x][y])
+            srcs[packet].add(buffer)
 
 
 def diffuse_packet(pkt: int) -> tuple:
@@ -69,7 +66,7 @@ def diffuse_packet(pkt: int) -> tuple:
     # Notes the target locations.
     target_locs: set[tuple] = {pe.loc for pe in dest[pkt]}
     # Reference check for correct calcs.
-    ref_locs:set[tuple] = target_locs.copy()
+    ref_locs: set[tuple] = target_locs.copy()
 
     # Initializes the diffusion grid, tracking steps from the nearest packet.
     pkt_grid: list[list[bool]] = [[-1 for j in range(M)] for i in range(N)]
@@ -121,19 +118,22 @@ def diffuse_packet(pkt: int) -> tuple:
                             # Otherwise, diffuse the packet.
                             else:
                                 pkt_grid[adj_loc[0]][adj_loc[1]] = pkt_grid[i][j] + 1
-        
+
         max_steps += 1
 
     # Sanity check the program works correctly.
-    assert(max_steps <= tot_steps)
+    assert max_steps <= tot_steps
     # The only case where it should be zero in a topology where buffers and
     # PEs are discrete units is when no PEs request the data.
     if max_steps == 0:
-        assert(not ref_locs)
+        assert not ref_locs
 
     return (max_steps, tot_steps)
+
 
 # Runs the simulation until all packets are delivered.
 for packet in packets:
     max_steps, tot_steps = diffuse_packet(packet)
-    print(f"Packet {packet} took {max_steps} steps to deliver, with all steps being {tot_steps}.")
+    print(
+        f"Packet {packet} took {max_steps} steps to deliver, with all steps being {tot_steps}."
+    )
