@@ -213,14 +213,16 @@ class Topology:
             # count, compared to the current diffusion path diffuses the packet.
             elif loc_val < 0 or loc_val > steps:
                 loc_space[loc[-1]] = steps
-            
+
             # If there are no more targets, just resolve current queue space.
             if target_locs:
                 # Goes through each adjacency.
                 adj: tuple
                 for adj in self.build_adjacencies():
                     # Calculates the adjacent location.
-                    adj_loc: tuple = tuple(loc[i] + adj[i] for i in range(len(self._dims)))
+                    adj_loc: tuple = tuple(
+                        loc[i] + adj[i] for i in range(len(self._dims))
+                    )
                     # Adds adjacency to queue if in bounds.
                     if self.bounds_check(adj_loc):
                         queue.append((steps + 1, dist + 1, adj_loc))
