@@ -206,27 +206,25 @@ class Topology:
         max_steps: int = 0
         # Tracks the total number of steps taken to reach all destinations.
         tot_steps: int = 0
-        # lambda function to detect if a packet has reached a locations.
-        reached: callable([tuple[int, int]], bool) = (
-            lambda loc: self.deduce_subspace(pkt_grid, loc)[loc[-1]] >= 0
-        )
         # Goes through the grid, diffusing the packet.
         while target_locs and queue:
+            # Grabs first off queue.
             loc: tuple = queue.pop(0)
             # Goes through each adjacency.
             adj: tuple
             for adj in self.build_adjacencies():
                 # Calculates the adjacent location.
                 adj_loc: tuple = tuple(np.array(adj) + np.array(loc))
+                # Skips this adjacency if out of bounds.
+                if not self.bounds_check(adj_loc):
+                    continue
                 # Finds subspace of adjacent location.
                 adj_space: list = self.deduce_subspace(pkt_grid, adj_loc)
                 # Accesses the value at current location.
                 loc_val: int = self.deduce_subspace(pkt_grid, loc)[loc[-1]]
-                # If the adjacent location is in the grid and has a higher
-                # or negative step count, diffuses the packet.
-                if (self.bounds_check(adj_loc)) and (
-                    loc_val < 0 or loc_val + 1 < adj_space[adj_loc[-1]]
-                ):
+                # If the adjacent location has a higher or negative step count,
+                # diffuses the packet.
+                if adj_space[adj_loc[-1]] < 0 or loc_val + 1 < adj_space[adj_loc[-1]]:
                     # Appends diffusion to end of queue.
                     queue.append(adj_loc)
                     # If the adj_loc is a destination.
@@ -247,6 +245,6 @@ class Topology:
         print(max_steps, tot_steps)
         # Sanity check the program works correctly.
         assert tot_steps <= (max_steps * num_locs)
-        assert max_steps <= tot_steps 
+        assert max_steps <= tot_steps
 
         return (max_steps, tot_steps)
