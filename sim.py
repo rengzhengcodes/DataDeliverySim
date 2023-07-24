@@ -92,6 +92,8 @@ plt.show()
 
 # Plots a histogram of the max number of cycles taken for each packet.
 plt.hist([max_cycles for _, (max_cycles, tot_cycles, heatmap) in res_dict.items()])
+# Gives the title of the plot.
+plt.title("Packets with a Given Max Distance")
 # Calls the x-axis distance.
 plt.xlabel("Distance (In Cycles)")
 # Calls the y-axis occurence.
@@ -100,6 +102,8 @@ plt.show()
 
 # Plots a histogram of the total number of cycles taken for each packet.
 plt.hist([tot_cycles for _, (max_cycles, tot_cycles, heatmap) in res_dict.items()])
+# Gives the title of the plot.
+plt.title("Total Number of Packets at a Set Net Distance")
 # Calls the x-axis distance.
 plt.xlabel("Distance (In Cycles)")
 # Calls the y-axis occurence.
