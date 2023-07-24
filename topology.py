@@ -191,7 +191,7 @@ class Topology:
         # Initializes the diffusion grid, tracking steps from the nearest packet.
         pkt_grid: tuple = self.build_diffusion_grid(-1)
         # Initializes the diffusion priority queue.
-        queue: list = []
+        queue: list[tuple[int, tuple]] = []
         # Initializes the diffusion grid with the sources.
         src: tuple
         for src in self._srcs[pkt]:
@@ -200,7 +200,7 @@ class Topology:
             # Seeds that cell.
             src_space[src.loc[-1]] = 0
             # Adds to diffusion queue
-            queue.append(src.loc)
+            queue.append((0, src.loc))
 
         # Tracks the maximum number of steps taken to reach all destinations.
         max_steps: int = 0
@@ -209,7 +209,10 @@ class Topology:
         # Goes through the grid, diffusing the packet.
         while target_locs and queue:
             # Grabs first off queue.
-            loc: tuple = queue.pop(0)
+            steps: int
+            loc: tuple
+            steps, loc = queue.pop(0)
+
             # Goes through each adjacency.
             adj: tuple
             for adj in self.build_adjacencies():
@@ -226,7 +229,7 @@ class Topology:
                 # diffuses the packet.
                 if adj_space[adj_loc[-1]] < 0 or loc_val + 1 < adj_space[adj_loc[-1]]:
                     # Appends diffusion to end of queue.
-                    queue.append(adj_loc)
+                    queue.append((steps + 1, adj_loc))
                     # If the adj_loc is a destination.
                     if adj_loc in target_locs:
                         # Diffuse 0.
@@ -236,13 +239,12 @@ class Topology:
                         # Remove the destination from the set of target
                         # locations.
                         target_locs.remove(adj_loc)
+                        # Replaces max_steps if steps+1 is greater
+                        max_steps = max(max_steps, steps + 1)
                     # Otherwise, diffuse the packet.
                     else:
                         adj_space[adj_loc[-1]] = loc_val + 1
 
-            max_steps += 1
-
-        print(max_steps, tot_steps)
         # Sanity check the program works correctly.
         assert tot_steps <= (max_steps * num_locs)
         assert max_steps <= tot_steps
