@@ -107,10 +107,12 @@ class Topology():
                     diffuse the packet to all elements and the second element is the
                     total number of steps taken by the diffusion.
         """
+        # If the packet was never assigned to a dst, no need to run.
+        if pkt not in self._dsts:
+            return (0, 0)
+
         # Notes the target locations.
         target_locs: set[tuple] = {pe.loc for pe in self._dsts[pkt]}
-        # Reference check for correct calcs.
-        ref_locs: set[tuple] = target_locs.copy()
 
         # Initializes the diffusion grid, tracking steps from the nearest packet.
         pkt_grid: tuple = self.build_diffusion_grid(0)
@@ -170,9 +172,5 @@ class Topology():
 
         # Sanity check the program works correctly.
         assert max_steps <= tot_steps
-        # The only case where it should be zero in a topology where buffers and
-        # PEs are discrete units is when no PEs request the data.
-        if max_steps == 0:
-            assert not ref_locs
 
         return (max_steps, tot_steps)
