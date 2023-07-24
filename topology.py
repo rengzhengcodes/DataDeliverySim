@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Iterable
 
-from pprint import pprint
+from joblib import Parallel, delayed
 
 from elements import Feature
 from elements.buffer import Buffer
@@ -32,8 +32,17 @@ class Topology:
         self._dsts: dict[Any, set] = self.build_directory(self._pes)
         self._srcs: dict[Any, set] = self.build_directory(self._buffer)
 
-        # Heatmap of worst-case transfers.
-        self._heatmap: tuple = self.build_diffusion_grid(0)
+        # Dictionary of all the data.
+        self._data: dict = {}
+
+        # Starts calculating packet totals.
+        results = Parallel(n_jobs=8)(delayed(self.diffuse_packet)(pkt) for pkt in self._dsts)
+        print(results[0])
+        # For every packet, print out the results.
+        for packet, max_steps, tot_steps, grid in results:
+            print(
+                f"Packet {packet} took {max_steps} steps to deliver, with all steps being {tot_steps}."
+            )
 
     def build_adjacencies(self) -> tuple:
         """
@@ -244,10 +253,5 @@ class Topology:
 
         # Sanity check the program works correctly.
         assert max_steps <= tot_steps <= (max_steps * num_locs)
-        # Adds to heatmap.
-        for loc in self.build_coords():
-            if self.deduce_subspace(pkt_grid, loc)[loc[-1]] >= 0:
-                self.deduce_subspace(self._heatmap, loc)[loc[-1]] += 1
-        pprint(pkt_grid)
 
-        return (max_steps, tot_steps)
+        return (pkt, max_steps, tot_steps, pkt_grid)

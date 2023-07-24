@@ -2,12 +2,11 @@
 
 import random
 
-from pprint import pprint
-from joblib import Parallel, delayed
-
 from elements import Feature
 from elements.buffer import Buffer
 from elements.processing import PE
+
+from pprint import pprint
 
 from topology import Topology
 
@@ -48,14 +47,3 @@ for x in range(M):
             bufs.add(Buffer((x, y), {packet}))
 
 topology: Topology = Topology((M, N), pes, bufs)
-print(tuple(topology.build_adjacencies()))
-
-
-# Runs the simulation until all packets are delivered.
-for packet in packets:
-    max_steps, tot_steps = topology.diffuse_packet(packet)
-    print(
-        f"Packet {packet} took {max_steps} steps to deliver, with all steps being {tot_steps}."
-    )
-
-pprint(topology._heatmap)
