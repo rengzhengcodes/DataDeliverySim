@@ -181,12 +181,16 @@ class Topology:
         # Tracks the total number of steps taken to reach all destinations.
         tot_steps: int = 0
         # Goes through the grid, diffusing the packet.
-        while target_locs and queue:
+        while queue:
             # Grabs first off queue.
             steps: int
             dist: int
             loc: tuple
             steps, dist, loc = queue.pop(0)
+
+            # If there are no more targets, stop at max_steps.
+            if not target_locs and steps > max_steps:
+                continue
 
             # Deduces current location.
             loc_space: list = self.deduce_subspace(pkt_grid, loc)
@@ -209,15 +213,17 @@ class Topology:
             # count, compared to the current diffusion path diffuses the packet.
             elif loc_val < 0 or loc_val > steps:
                 loc_space[loc[-1]] = steps
-
-            # Goes through each adjacency.
-            adj: tuple
-            for adj in self.build_adjacencies():
-                # Calculates the adjacent location.
-                adj_loc: tuple = tuple(loc[i] + adj[i] for i in range(len(self._dims)))
-                # Adds adjacency to queue if in bounds.
-                if self.bounds_check(adj_loc):
-                    queue.append((steps + 1, dist + 1, adj_loc))
+            
+            # If there are no more targets, just resolve current queue space.
+            if target_locs:
+                # Goes through each adjacency.
+                adj: tuple
+                for adj in self.build_adjacencies():
+                    # Calculates the adjacent location.
+                    adj_loc: tuple = tuple(loc[i] + adj[i] for i in range(len(self._dims)))
+                    # Adds adjacency to queue if in bounds.
+                    if self.bounds_check(adj_loc):
+                        queue.append((steps + 1, dist + 1, adj_loc))
 
         # Sanity check the program works correctly.
         assert max_steps <= tot_steps <= (max_steps * num_locs)
